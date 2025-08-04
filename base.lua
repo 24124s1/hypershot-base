@@ -36,7 +36,7 @@ local skinModuleScript = ReplicatedStorage.Modules.SkinModules.SkinModule
 local skinModule = require(skinModuleScript)
 local gunSkins = require(skinModuleScript:WaitForChild("GunSkins"))
 
-local selectedSkinName = "Rainbow Camo"
+local selectedSkinName = "DNA"
 
 local allSkins  = {
     ["Army Camo"] = {
