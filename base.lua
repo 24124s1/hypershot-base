@@ -891,10 +891,10 @@ getgenv().ToggleInstantReload = true
 
 getgenv().BaseSpread = 0
 getgenv().Spread = 0
-getgenv().Ammo = 9e9
-getgenv().FillAmmo = 9e9
-getgenv().Debounce = 0
-getgenv().ReloadTime = -1
+getgenv().Ammo = 10000
+getgenv().FillAmmo = 10000
+getgenv().Debounce = 0.1
+getgenv().ReloadTime = 0.1
 getgenv().Auto = true
 
 getgenv().MinCamRecoil = Vector3.new(0,0,0)
