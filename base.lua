@@ -36,7 +36,7 @@ local skinModuleScript = ReplicatedStorage.Modules.SkinModules.SkinModule
 local skinModule = require(skinModuleScript)
 local gunSkins = require(skinModuleScript:WaitForChild("GunSkins"))
 
-local selectedSkinName = "DNA"
+local selectedSkinName = "Rainbow Camo"
 
 local allSkins  = {
     ["Army Camo"] = {
@@ -891,10 +891,10 @@ getgenv().ToggleInstantReload = true
 
 getgenv().BaseSpread = 0
 getgenv().Spread = 0
-getgenv().Ammo = 10000
-getgenv().FillAmmo = 10000
-getgenv().Debounce = 0.1
-getgenv().ReloadTime = 0.1
+getgenv().Ammo = 9e9
+getgenv().FillAmmo = 9e9
+getgenv().Debounce = 0
+getgenv().ReloadTime = -1
 getgenv().Auto = true
 
 getgenv().MinCamRecoil = Vector3.new(0,0,0)
@@ -1278,3 +1278,192 @@ for _, moduleScript in pairs(KillVFXFolder:GetChildren()) do
         end
     end
 end
+-- Auto Farm
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local flag1 = workspace.Map.Flag1:WaitForChild("MainFlag")
+local flag2 = workspace.Map.Flag2:WaitForChild("MainFlag")
+
+local teleportHeight = 20
+local waitAfterLand = 0.08
+local toggleKey = Enum.KeyCode.T
+
+local toggled = false
+local looping = false
+
+local function waitForLanding()
+	repeat task.wait() until humanoid.FloorMaterial ~= Enum.Material.Air
+end
+
+-- Teleport loop
+local function teleportLoop()
+	looping = true
+	while toggled do
+		-- Go above Flag1
+		humanoidRootPart.CFrame = flag1.CFrame + Vector3.new(0, teleportHeight, 0)
+		waitForLanding()
+		task.wait(waitAfterLand)
+
+		if not toggled then break end
+
+		-- Go above Flag2
+		humanoidRootPart.CFrame = flag2.CFrame + Vector3.new(0, teleportHeight, 0)
+		waitForLanding()
+		task.wait(waitAfterLand)
+	end
+	looping = false
+end
+
+-- Toggle with key
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == toggleKey then
+		toggled = not toggled
+		if toggled and not looping then
+			teleportLoop()
+		end
+	end
+end)
+-- Magic Bullet 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+local WorldToScreenPoint = Camera.WorldToScreenPoint
+local GetPlayers = Players.GetPlayers
+local FindFirstChild = game.FindFirstChild
+local RunService = game:GetService("RunService")
+local Workspace = workspace
+
+getgenv().ShowFOV = getgenv().ShowFOV or true
+getgenv().SilentAim = getgenv().SilentAim or true
+
+local FOV_RADIUS = 1000
+local FOV_CIRCLE = Drawing.new("Circle")
+FOV_CIRCLE.Thickness = 1
+FOV_CIRCLE.Radius = FOV_RADIUS
+FOV_CIRCLE.Filled = false
+FOV_CIRCLE.Color = Color3.new(1, 1, 1)
+FOV_CIRCLE.Transparency = 0.5
+FOV_CIRCLE.Visible = false
+
+local raycastParams = RaycastParams.new()
+raycastParams.IgnoreWater = true
+raycastParams.FilterType = Enum.RaycastFilterType.Whitelist
+raycastParams.FilterDescendantsInstances = {}
+
+local function CollectPartsFromModel(model)
+    local parts = {}
+    for _, part in ipairs(model:GetChildren()) do
+        if part:IsA("BasePart") then
+            parts[#parts+1] = part
+        end
+    end
+    return parts
+end
+
+local function UpdateWhitelist()
+    local whitelist = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local character = player.Character
+            if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
+                local parts = CollectPartsFromModel(character)
+                for _, part in ipairs(parts) do
+                    whitelist[#whitelist+1] = part
+                end
+            end
+        end
+    end
+    local mobsFolder = Workspace:FindFirstChild("Mobs")
+    if mobsFolder then
+        for _, mob in pairs(mobsFolder:GetChildren()) do
+            local parts = CollectPartsFromModel(mob)
+            for _, part in ipairs(parts) do
+                whitelist[#whitelist+1] = part
+            end
+        end
+    end
+    raycastParams.FilterDescendantsInstances = whitelist
+end
+
+spawn(function()
+    while true do
+        UpdateWhitelist()
+        wait(0.01)
+    end
+end)
+
+local function GetOnScreenPosition(V3)
+    local Position, IsVisible = WorldToScreenPoint(Camera, V3)
+    return Vector2.new(Position.X, Position.Y), IsVisible
+end
+
+local function GetDirection(Origin, Position)
+    return (Position - Origin).Unit * (Origin - Position).Magnitude
+end
+
+local function GetMousePosition()
+    return Vector2.new(Mouse.X, Mouse.Y)
+end
+
+local function GetClosestPlayer()
+    local Closest, Distance = nil, FOV_RADIUS
+    for _, Player in next, GetPlayers(Players) do
+        if Player ~= LocalPlayer then
+            local Character = Player.Character
+            local Head = Character and FindFirstChild(Character, "Head")
+            local Humanoid = Character and FindFirstChild(Character, "Humanoid")
+            if Head and (Humanoid and Humanoid.Health > 0) then
+                local ScreenPos, IsVisible = GetOnScreenPosition(Head.Position)
+                if IsVisible then
+                    local _Distance = (GetMousePosition() - ScreenPos).Magnitude
+                    if _Distance <= Distance then
+                        Closest = Head
+                        Distance = _Distance
+                    end
+                end
+            end
+        end
+    end
+    return Closest, Distance
+end
+
+RunService.RenderStepped:Connect(function()
+    FOV_CIRCLE.Position = GetMousePosition()
+    FOV_CIRCLE.Visible = getgenv().ShowFOV
+end)
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(...)
+    local Method = getnamecallmethod()
+    local Arguments = {...}
+    if Arguments[1] == workspace and Method == "Raycast" then
+        if typeof(Arguments[#Arguments]) ~= "RaycastParams" then
+            return oldNamecall(...)
+        end
+        if getgenv().SilentAim then
+            local HitPart = GetClosestPlayer()
+            if HitPart then
+                Arguments[3] = GetDirection(Arguments[2], HitPart.Position)
+                Arguments[#Arguments] = raycastParams
+                return oldNamecall(unpack(Arguments))
+            end
+        end
+    end
+    return oldNamecall(...)
+end)
+-- weapon changer 
+local args = {
+    1, -- Loadout #
+    2, -- Weapon Slot 1-3
+    "AK" -- Must Own The Weapon
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Remotes"):WaitForChild("EquipLoadout"):FireServer(unpack(args))
